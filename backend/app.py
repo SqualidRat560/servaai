@@ -159,9 +159,29 @@ def portfolio() -> dict:
             "segments": {k: int(v) for k, v in seg.items()}, "points": pts}
 
 
-@app.get("/")
-def index() -> FileResponse:
+@app.get("/api/backtest")
+def backtest() -> dict:
+    b = forecast.load_bundle()
+    return {"winner": b["winner"], "results": b["results"], "avg_mae": b["avg_mae"],
+            "coverage": b["coverage"], "rows": b["rows"]}
+
+
+DIST = Path(__file__).resolve().parents[1] / "frontend" / "dist"
+
+
+@app.get("/preview")
+def preview() -> FileResponse:
+    """The original plain-HTML engine preview."""
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/")
+def index() -> FileResponse:
+    """The React app when it has been built (npm run build), else the plain preview."""
+    built = DIST / "index.html"
+    return FileResponse(built if built.exists() else STATIC / "index.html")
+
+
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+if (DIST / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")

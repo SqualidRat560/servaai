@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-harbour: #0b1b3f;
+  --color-deepwater: #13285a;
+  --color-line: #24407e;
+  --color-tangerine: #f28500;
+  --color-peel: #ffc27a;
+  --color-frost: #e8eef9;
+  --color-mist: #a9b7d6;
+  --color-overdraft: #ff6b5b;
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, sans-serif;
+}
+
+html { background: var(--color-harbour); color: var(--color-frost); }
+body { margin: 0; font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+
+/* condensed display numerals: the runway pair is the typographic centrepiece */
+.numeral { font-family: var(--font-display); font-variation-settings: "wdth" 75, "opsz" 96;
+           font-weight: 700; line-height: 0.85; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.display { font-family: var(--font-display); font-variation-settings: "wdth" 85, "opsz" 48; }
+
+:focus-visible { outline: 2px solid var(--color-peel); outline-offset: 2px; border-radius: 4px; }
+
+input[type="range"] { accent-color: var(--color-tangerine); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
