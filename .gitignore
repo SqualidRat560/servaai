@@ -10,3 +10,6 @@ __pycache__/
 # node
 node_modules/
 dist/
+# engine cache and raw-data exports for the hand check
+backend/cache/
+docs/answer_key/

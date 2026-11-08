@@ -1,0 +1,20 @@
+{
+  "_how": "A teammate computes these by hand in a spreadsheet from docs/answer_key/<id>_monthly.csv (run: python -m backend.tests.make_answer_key). Fill each null with the hand value: money to the cent; runway rounded to 1 decimal, or the text \"no shortfall (120+)\". test_answer_key_hand_values checks every filled value against the engine.",
+  "accounts": {
+    "63816": {
+      "role": "normal: 69 months, running loan (status C), household bills > 0",
+      "hand": {"I": null, "F": null, "S": null, "B": null, "H": null, "P": null,
+               "layoff_ei55": null, "furnace_1mo": null, "layoff_ei55_bills15": null}
+    },
+    "32078": {
+      "role": "buffer B <= 0",
+      "hand": {"I": null, "F": null, "S": null, "B": null, "H": null, "P": null,
+               "layoff_ei55": null, "furnace_1mo": null, "layoff_ei55_bills15": null}
+    },
+    "99477": {
+      "role": "ends early (last month 2024-03) and income I = 0",
+      "hand": {"I": null, "F": null, "S": null, "B": null, "H": null, "P": null,
+               "layoff_ei55": null, "furnace_1mo": null, "layoff_ei55_bills15": null}
+    }
+  }
+}
