@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    image: servaai:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"   # only nginx on the same machine can reach it
+    env_file:
+      - backend/.env            # GEMINI_API_KEY, GEMINI_MODEL (never committed)
+    volumes:
+      - ./data:/app/data:ro     # the track's CSVs (not in git)

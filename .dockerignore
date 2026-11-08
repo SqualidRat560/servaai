@@ -1,0 +1,12 @@
+.git
+.venv
+.claude
+data
+**/.env
+**/node_modules
+frontend/dist
+backend/cache
+**/__pycache__
+**/.pytest_cache
+powerbi
+docs

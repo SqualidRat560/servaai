@@ -23,6 +23,7 @@ STATIC = Path(__file__).resolve().parent / "static"
 async def lifespan(_app: FastAPI):
     engine.get_profiles()  # load the cached profiles once at startup
     forecast.load_bundle()  # load (or train once) the forecast models
+    population.load_portfolio()  # build the portfolio once so /api/portfolio is instant
     yield
 
 
