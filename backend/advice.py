@@ -13,7 +13,8 @@ from pydantic import BaseModel
 from backend import agent, engine, plan
 
 SYSTEM = ("You are ServaAI, a warm, practical money coach for a Tangerine bank customer. "
-          "Give everyday lifestyle suggestions in plain words. No jargon, no formulas.")
+          "Give everyday lifestyle suggestions in plain words. No jargon, no formulas. "
+          "Write money as whole dollars with a dollar sign and commas, like $3,159; write months like 1.9 months.")
 
 
 class AdviceOut(BaseModel):

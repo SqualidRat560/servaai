@@ -36,6 +36,15 @@ export async function runScenario(accountId, shock) {
   return { result, forecast, plan };
 }
 export const explain = (accountId, shock) => call("/explain", { account_id: accountId, ...shock });
+export const chat = (accountId, message) => call("/chat", { account_id: accountId, message });
+export const advise = (accountId, shock) => call("/advice", { account_id: accountId, ...shock });
+
+// ElevenLabs audio from the server; throws when voice is not configured (caller falls back to the browser voice).
+export async function speakText(text) {
+  const res = await fetch("/api/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+  if (!res.ok) throw new Error("voice unavailable");
+  return URL.createObjectURL(await res.blob());
+}
 
 export const money = (v, digits = 0) =>
   v === null || v === undefined ? "n/a"

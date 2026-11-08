@@ -38,7 +38,7 @@ export default function AccountView({ accountId }) {
   async function load(reset, dir = filter) {
     setLoading(true); setError("");
     try {
-      const d = await getStatement(accountId, { limit: 15, before: reset ? undefined : next, direction: dir || undefined });
+      const d = await getStatement(accountId, { limit: 6, before: reset ? undefined : next, direction: dir || undefined });
       if (reset) setHead(d);
       setRows((r) => (reset ? d.transactions : [...r, ...d.transactions]));
       setNext(d.has_more ? d.next_before : null);
