@@ -51,6 +51,12 @@ def load_monthly() -> pd.DataFrame:
     return m.sort_values(["account_id", "month"], kind="mergesort").reset_index(drop=True)
 
 
+@lru_cache(maxsize=1)
+def load_monthly_cached() -> pd.DataFrame:
+    """load_monthly() kept in memory (do not mutate the result)."""
+    return load_monthly()
+
+
 def _compute_profiles() -> pd.DataFrame:
     m = load_monthly()
     g = m.groupby("account_id", sort=True)

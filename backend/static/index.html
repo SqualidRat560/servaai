@@ -71,13 +71,34 @@
   </section>
 
   <section id="resultp" class="panel hidden">
-    <h2 style="margin:0 0 10px;font-size:18px">Runway <span class="tag">Judge formula</span></h2>
-    <div class="result">
-      <div class="big" id="runway"></div>
-      <div id="verdict"></div>
-      <div class="explain" id="steps"></div>
-      <div class="explain" id="explain"></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+      <div>
+        <h2 style="margin:0 0 6px;font-size:18px">Runway <span class="tag">Judge formula</span></h2>
+        <div class="big" id="runway"></div>
+        <div id="verdict"></div>
+      </div>
+      <div id="realbox" class="hidden">
+        <h2 style="margin:0 0 6px;font-size:18px">Runway <span class="tag" style="background:var(--orange);color:#1a1000">ServaAI realistic</span></h2>
+        <div class="big" id="real" style="color:var(--text)"></div>
+        <div class="explain" id="realwhy"></div>
+      </div>
     </div>
+    <div class="explain" id="steps" style="margin-top:10px"></div>
+    <div class="explain" id="explain"></div>
+    <p class="explain" style="margin-top:8px">Realistic: EI stops after 6 months and is capped at $729/week. money_in includes transfers and pensions, so EI here is an upper bound.</p>
+  </section>
+
+  <section id="fcp" class="panel hidden">
+    <h2 style="margin:0 0 10px;font-size:18px">3. Next 3 months <span class="tag" id="fcmodel"></span></h2>
+    <div style="overflow-x:auto"><table id="fc" style="width:100%;border-collapse:collapse"></table></div>
+    <p class="explain">Month-end balance. Band = P10-P90 from 2025 backtest errors. See docs/backtest.md.</p>
+  </section>
+
+  <section id="planp" class="panel hidden">
+    <h2 style="margin:0 0 10px;font-size:18px">4. Tangerine plan</h2>
+    <div class="grid" id="goal"></div>
+    <div id="backup" style="margin-top:12px"></div>
+    <div class="grid" id="tools" style="margin-top:12px"></div>
   </section>
 </main>
 <script>
@@ -108,6 +129,8 @@ async function lookup(id) {
     $("cards").innerHTML = cards.map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
     ["customer", "shockp"].forEach((s) => $(s).classList.remove("hidden"));
     $("steps").textContent = "";
+    $("realbox").classList.add("hidden");
+    loadExtras({});
     show(d.runway_no_shock, "No shock");
   } catch (e) { $("msg").textContent = e.message; }
 }
@@ -127,6 +150,38 @@ async function applyShock(body, title) {
                                        body: JSON.stringify({account_id: current.account_id, ...body})});
     $("steps").textContent = d.shocked.explanation;
     show(d.judge_runway, title);
+    $("realbox").classList.remove("hidden");
+    $("real").textContent = d.realistic_runway.label;
+    $("realwhy").textContent = d.realistic_runway.reason;
+    loadExtras(body);
+  } catch (e) { $("msg").textContent = e.message; }
+}
+
+const td = (v, b) => `<td style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:right${b ? ';font-weight:650' : ''}">${v}</td>`;
+async function loadExtras(body) {
+  const req = {method: "POST", headers: {"Content-Type": "application/json"},
+               body: JSON.stringify({account_id: current.account_id, ...body})};
+  try {
+    const [f, pl] = await Promise.all([api("/api/forecast", req), api("/api/plan", req)]);
+    $("fcmodel").textContent = `model: ${f.model}, from ${f.start_month} balance ${money(f.start_balance)}`;
+    const rows = [["Month", f.months, false], ["Normal path", f.base.map(money), true],
+                  ["P10 (low)", f.p10.map(money), false], ["P90 (high)", f.p90.map(money), false]];
+    if (f.shocked) rows.push(["After the shock", f.shocked.map(money), true]);
+    $("fc").innerHTML = rows.map(([k, vals, b]) => `<tr><td style="padding:6px 8px;border-bottom:1px solid var(--line);color:var(--muted)">${k}</td>${vals.map((v) => td(v, b)).join("")}</tr>`).join("");
+    const g = pl.goal;
+    $("goal").innerHTML = [
+      ["Monthly surplus (I - S)", money(g.surplus_monthly)],
+      ["Emergency fund: 3 months", `${money(g.target_3_months)} (${g.progress_3 === null ? "n/a" : Math.round(g.progress_3 * 100) + "%"})`],
+      ["Emergency fund: 6 months", `${money(g.target_6_months)} (${g.progress_6 === null ? "n/a" : Math.round(g.progress_6 * 100) + "%"})`],
+      ["Automatic Savings / week", money(g.asp_weekly)],
+    ].map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v" style="font-size:17px">${v}</div></div>`).join("");
+    const b = pl.backup;
+    $("backup").innerHTML = `<b>Backup plan</b> (target ${b.target_months} months realistic runway): ` +
+      (b.cuts.length ? b.cuts.map((c) => `cut ${c.label} by ${money(c.cut)}/month (${Math.round(c.cut_pct * 100)}%)`).join("; ") +
+        `. Runway ${b.runway_before.label} &rarr; <b>${b.runway_after.label}</b>${b.reached_target ? "" : " (target not reached even with max 50% cuts)"}.`
+        : `no cuts needed (${b.runway_before.label}).`);
+    $("tools").innerHTML = pl.tools.map((t) => `<div class="card"><div class="k">${t.tool}</div><div style="font-size:14px">${t.action}</div></div>`).join("");
+    ["fcp", "planp"].forEach((x) => $(x).classList.remove("hidden"));
   } catch (e) { $("msg").textContent = e.message; }
 }
 

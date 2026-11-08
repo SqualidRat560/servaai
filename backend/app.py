@@ -15,13 +15,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from backend import engine
+from backend import engine, forecast, plan, realistic
 
 STATIC = Path(__file__).resolve().parent / "static"
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     engine.get_profiles()  # load the cached profiles once at startup
+    forecast.load_bundle()  # load (or train once) the forecast models
     yield
 
 
@@ -43,6 +44,15 @@ class ShockRequest(BaseModel):
     rent_up: float = Field(0.0, ge=0, description="rent up, dollars per month")
     repair_months: float = Field(0.0, ge=0, description="repair costing k months of spending")
     one_off: float = Field(0.0, ge=0, description="repair or scam, dollars")
+    ei_cap: bool = Field(True, description="apply the EI cap of $729/week (realistic runway)")
+    reemploy_month: int | None = Field(None, ge=1, le=120, description="new job from this month")
+
+    def to_shock(self) -> engine.Shock:
+        try:
+            return engine.Shock(ei_pct=self.ei_pct, bills_up_pct=self.bills_up_pct, rent_up=self.rent_up,
+                                repair_months=self.repair_months, one_off=self.one_off)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from None
 
 
 def _run(account_id: int, shock: engine.Shock) -> dict:
@@ -75,12 +85,38 @@ def account(account_id: int) -> dict:
 
 @app.post("/api/shock")
 def shock(req: ShockRequest) -> dict:
+    s = req.to_shock()
+    out = _run(req.account_id, s)
+    p = engine.profile(req.account_id)
+    out["realistic_runway"] = realistic.realistic_runway(
+        p, s, cap=req.ei_cap, reemploy_month=req.reemploy_month).to_dict()
+    return out
+
+
+@app.get("/api/forecast/{account_id}")
+def forecast_get(account_id: int) -> dict:
     try:
-        s = engine.Shock(ei_pct=req.ei_pct, bills_up_pct=req.bills_up_pct, rent_up=req.rent_up,
-                         repair_months=req.repair_months, one_off=req.one_off)
-    except ValueError as e:
-        raise HTTPException(422, str(e)) from None
-    return _run(req.account_id, s)
+        return forecast.forecast(account_id)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {account_id} not found") from None
+
+
+@app.post("/api/forecast")
+def forecast_post(req: ShockRequest) -> dict:
+    s = req.to_shock()
+    try:
+        return forecast.forecast(req.account_id, s, cap=req.ei_cap, reemploy_month=req.reemploy_month)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {req.account_id} not found") from None
+
+
+@app.post("/api/plan")
+def plan_post(req: ShockRequest) -> dict:
+    s = req.to_shock()
+    try:
+        return plan.build_plan(req.account_id, s, cap=req.ei_cap, reemploy_month=req.reemploy_month)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {req.account_id} not found") from None
 
 
 @app.get("/")

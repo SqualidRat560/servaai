@@ -28,7 +28,9 @@ def test_account_matches_engine(aid):
 def test_shock_endpoint_matches_engine(name):
     shock = engine.TWISTS[name]
     body = {"account_id": 63816, **vars(shock)}
-    assert client.post("/api/shock", json=body).json() == engine.run(63816, shock)
+    got = client.post("/api/shock", json=body).json()
+    assert {k: got[k] for k in ("profile", "shock", "shocked", "judge_runway")} == engine.run(63816, shock)
+    assert "realistic_runway" in got
 
 
 def test_readme_twist_values_through_api():
@@ -47,3 +49,15 @@ def test_unknown_account_is_404():
                                   {"account_id": "abc"}])
 def test_bad_shock_is_422(body):
     assert client.post("/api/shock", json=body).status_code == 422
+
+
+def test_realistic_forecast_and_plan_endpoints():
+    body = {"account_id": 63816, "ei_pct": 0.55}
+    r = client.post("/api/shock", json=body).json()
+    assert r["judge_runway"]["value"] == 3.4 and r["realistic_runway"]["value"] < 3.4
+    f = client.post("/api/forecast", json=body).json()
+    assert len(f["base"]) == 3 and len(f["shocked"]) == 3
+    assert client.get("/api/forecast/63816").json()["shocked"] is None
+    pl = client.post("/api/plan", json=body).json()
+    assert pl["backup"]["runway_after"]["value"] >= pl["backup"]["runway_before"]["value"]
+    assert client.post("/api/plan", json={"account_id": 1}).status_code == 404
