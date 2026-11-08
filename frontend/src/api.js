@@ -23,6 +23,12 @@ export const getTwists = () => call("/twists");
 export const parseEvent = (text) => call("/parse-event", { text });
 export const getPortfolio = () => call("/portfolio");
 export const getBacktest = () => call("/backtest");
+export function getStatement(id, { limit = 15, before, direction } = {}) {
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (before) q.set("before", before);
+  if (direction) q.set("direction", direction);
+  return call(`/accounts/${encodeURIComponent(id)}/statement?${q}`);
+}
 
 export async function runScenario(accountId, shock) {
   const body = { account_id: accountId, ...shock };

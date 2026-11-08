@@ -4,6 +4,8 @@ import { ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } fro
 import { getPortfolio } from "../api.js";
 
 const Galaxy = lazy(() => import("../three/Galaxy.jsx"));
+// Set VITE_POWERBI_URL at build time to embed the published report; unset = native charts only.
+const POWERBI_URL = (import.meta.env.VITE_POWERBI_URL || "").trim();
 export const SEG_COLOR = { Stable: C.positive, "Hidden fragile": C.accent, Fragile: C.fragile, "Already short": C.negative };
 const SEG_TEXT = {
   Stable: "lasts 6+ months even realistically",
@@ -53,6 +55,14 @@ export default function Portfolio({ threeD }) {
           <span className="text-ink">{d.segments["Hidden fragile"].toLocaleString()} look safe but are not</span>.
         </p>
       </section>
+
+      {POWERBI_URL && (
+        <section aria-label="Power BI report">
+          <h2 className="display text-xl">Power BI report</h2>
+          <iframe title="ServaAI Power BI report" src={POWERBI_URL} allowFullScreen loading="lazy"
+                  className="mt-3 h-[560px] w-full rounded-md border border-line bg-paper" />
+        </section>
+      )}
 
       <section aria-label="Segments">
         <div className="flex h-4 w-full overflow-hidden rounded-full">
