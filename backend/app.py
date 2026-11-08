@@ -8,18 +8,20 @@ from __future__ import annotations
 
 import os
 import re
+import time
+from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend import advice as advice_mod
-from backend import agent, engine, forecast, plan, population, realistic, statement
+from backend import agent, engine, forecast, money_chat, plan, population, realistic, statement
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -179,22 +181,45 @@ def explain(req: ShockRequest) -> dict:
     return {**agent.explain(facts), "facts": facts}
 
 
+class ChatTurn(BaseModel):
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str = Field(..., max_length=money_chat.MAX_CHARS)
+
+
 class ChatRequest(BaseModel):
     account_id: int
-    message: str = Field(..., max_length=1000)
+    messages: list[ChatTurn] = Field(..., min_length=1, max_length=40)  # the last 8 are used
+
+
+RATE_LIMIT = 20          # chat requests per IP ...
+RATE_WINDOW = 10 * 60    # ... per 10 minutes (in memory)
+_hits: dict[str, deque] = {}
+
+
+def _allow(ip: str, now: float | None = None) -> bool:
+    now = time.time() if now is None else now
+    q = _hits.setdefault(ip, deque())
+    while q and now - q[0] > RATE_WINDOW:
+        q.popleft()
+    if len(q) >= RATE_LIMIT:
+        return False
+    q.append(now)
+    return True
 
 
 @app.post("/api/chat")
-def chat(req: ChatRequest) -> dict:
-    """A chat message: a life event -> a chip to confirm; anything else -> grounded lifestyle tips."""
+def chat(req: ChatRequest, request: Request) -> dict:
+    """Ask about your money. Gemini calls read-only tools bound to req.account_id; numbers come from tool results."""
+    if not _allow(request.client.host if request.client else "unknown"):
+        raise HTTPException(429, "That's a lot of questions in a short time. Please wait a few minutes and try again.")
     try:
         engine.profile(req.account_id)
     except engine.UnknownAccount:
         raise HTTPException(404, f"account_id {req.account_id} not found") from None
-    parsed = agent.parse_event(req.message)
-    if parsed["chip"]:
-        return {"kind": "event", **parsed}
-    return {"kind": "answer", **advice_mod.answer(req.account_id, req.message)}
+    try:
+        return money_chat.respond(req.account_id, [t.model_dump() for t in req.messages])
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from None
 
 
 @app.post("/api/advice")
