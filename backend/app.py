@@ -6,16 +6,19 @@ Then open http://localhost:8000
 """
 from __future__ import annotations
 
+import os
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backend import advice as advice_mod
 from backend import agent, engine, forecast, plan, population, realistic, statement
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -155,6 +158,59 @@ def explain(req: ShockRequest) -> dict:
     except engine.UnknownAccount:
         raise HTTPException(404, f"account_id {req.account_id} not found") from None
     return {**agent.explain(facts), "facts": facts}
+
+
+class ChatRequest(BaseModel):
+    account_id: int
+    message: str = Field(..., max_length=1000)
+
+
+@app.post("/api/chat")
+def chat(req: ChatRequest) -> dict:
+    """A chat message: a life event -> a chip to confirm; anything else -> grounded lifestyle tips."""
+    try:
+        engine.profile(req.account_id)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {req.account_id} not found") from None
+    parsed = agent.parse_event(req.message)
+    if parsed["chip"]:
+        return {"kind": "event", **parsed}
+    return {"kind": "answer", **advice_mod.answer(req.account_id, req.message)}
+
+
+@app.post("/api/advice")
+def advice(req: ShockRequest) -> dict:
+    """The outcome in plain words + lifestyle suggestions; every number comes from the engine (checked)."""
+    s = req.to_shock()
+    try:
+        f = advice_mod.facts(req.account_id, s, reemploy_month=req.reemploy_month, cap=req.ei_cap)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {req.account_id} not found") from None
+    return {**advice_mod.outcome_advice(f), "facts": f}
+
+
+class SpeakRequest(BaseModel):
+    text: str = Field(..., max_length=1500)
+
+
+@app.post("/api/speak")
+def speak(req: SpeakRequest) -> Response:
+    """ElevenLabs text-to-speech when ELEVENLABS_API_KEY is set in backend/.env.
+    404 = not configured, so the app falls back to the browser's built-in voice."""
+    agent._env()  # loads backend/.env into the environment
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise HTTPException(404, "voice not configured")
+    voice = os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+    try:
+        r = httpx.post(f"https://api.elevenlabs.io/v1/text-to-speech/{voice}",
+                       headers={"xi-api-key": key, "accept": "audio/mpeg"},
+                       json={"text": req.text, "model_id": os.environ.get("ELEVENLABS_MODEL", "eleven_turbo_v2_5")},
+                       timeout=20)
+        r.raise_for_status()
+    except Exception:
+        raise HTTPException(502, "voice service unavailable") from None
+    return Response(content=r.content, media_type="audio/mpeg")
 
 
 @app.get("/api/portfolio")
