@@ -6,6 +6,7 @@ Then open http://localhost:8000
 """
 from __future__ import annotations
 
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from backend import agent, engine, forecast, plan, population, realistic
+from backend import agent, engine, forecast, plan, population, realistic, statement
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -24,6 +25,7 @@ async def lifespan(_app: FastAPI):
     engine.get_profiles()  # load the cached profiles once at startup
     forecast.load_bundle()  # load (or train once) the forecast models
     population.load_portfolio()  # build the portfolio once so /api/portfolio is instant
+    statement.store()  # transactions loaded once (parquet cache), never per request
     yield
 
 
@@ -82,6 +84,20 @@ def account(account_id: int) -> dict:
     baseline = _run(account_id, engine.Shock())["judge_runway"]
     readme = {k: _run(account_id, s)["judge_runway"] for k, s in engine.TWISTS.items()}
     return {"profile": p.to_dict(), "runway_no_shock": baseline, "readme_twists": readme}
+
+
+@app.get("/api/accounts/{account_id}/statement")
+def account_statement(account_id: int, limit: int = 50, before: str | None = None,
+                      direction: str | None = None) -> dict:
+    """'My account': balance, loan (estimate), cards and transactions, newest first."""
+    if before is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", before):
+        raise HTTPException(422, "before must be a date like 2025-06-30")
+    if direction not in (None, "", "in", "out"):
+        raise HTTPException(422, "direction must be 'in' or 'out'")
+    try:
+        return statement.statement(account_id, limit=limit, before=before, direction=direction or None)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {account_id} not found") from None
 
 
 @app.post("/api/shock")
