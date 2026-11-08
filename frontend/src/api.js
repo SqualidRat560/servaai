@@ -23,12 +23,15 @@ export const getTwists = () => call("/twists");
 export const parseEvent = (text) => call("/parse-event", { text });
 export const getPortfolio = () => call("/portfolio");
 export const getBacktest = () => call("/backtest");
-export function getStatement(id, { limit = 15, before, direction } = {}) {
+export function getStatement(id, { limit = 15, before, direction, category, purpose, month } = {}) {
   const q = new URLSearchParams({ limit: String(limit) });
-  if (before) q.set("before", before);
-  if (direction) q.set("direction", direction);
+  for (const [k, v] of Object.entries({ before, direction, category, purpose, month })) if (v) q.set(k, v);
   return call(`/accounts/${encodeURIComponent(id)}/statement?${q}`);
 }
+export const getCategories = (id, month) =>
+  call(`/accounts/${encodeURIComponent(id)}/categories${month ? `?month=${month}` : ""}`);
+// Ask about your money: Gemini + read-only tools bound to this account (server side).
+export const askMoney = (accountId, messages) => call("/chat", { account_id: accountId, messages });
 
 export async function runScenario(accountId, shock) {
   const body = { account_id: accountId, ...shock };
@@ -36,7 +39,6 @@ export async function runScenario(accountId, shock) {
   return { result, forecast, plan };
 }
 export const explain = (accountId, shock) => call("/explain", { account_id: accountId, ...shock });
-export const chat = (accountId, message) => call("/chat", { account_id: accountId, message });
 export const advise = (accountId, shock) => call("/advice", { account_id: accountId, ...shock });
 
 // ElevenLabs audio from the server; throws when voice is not configured (caller falls back to the browser voice).

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { getAccount, runScenario } from "../api.js";
-import AccountView from "../components/AccountView.jsx";
+import AccountView, { CLOSED } from "../components/AccountView.jsx";
 import ChatBot from "../components/ChatBot.jsx";
 import CoinStack2D from "../components/CoinStack2D.jsx";
 import ForecastChart from "../components/ForecastChart.jsx";
@@ -18,6 +18,22 @@ export default function Customer({ initialId, threeD }) {
   const [shock, setShock] = useState(EMPTY);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [panel, setPanel] = useState(CLOSED);          // the inline transaction list under the account cards
+  const [detailsOpen, setDetailsOpen] = useState(false); // forecast, plan and formulas
+
+  // buttons under chatbot answers: open the transaction list, show the forecast, or compare with everyone
+  const onLink = useCallback((l) => {
+    if (l.kind === "transactions") {
+      const f = l.filter || {};
+      setPanel({ ...CLOSED, open: true, nonce: Date.now(), category: f.category || "", purpose: f.purpose || "", month: f.month || "",
+                 title: l.label.replace(/^View \d+ /, "").replace(/^./, (c) => c.toUpperCase()) });
+    } else if (l.kind === "forecast") {
+      setDetailsOpen(true);
+      setTimeout(() => document.getElementById("forecast-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    } else if (l.kind === "portfolio") {
+      window.location.hash = "#/portfolio";
+    }
+  }, []);
 
   const run = useCallback(async (s, id) => {
     const full = { ...EMPTY, ...s };
@@ -31,6 +47,7 @@ export default function Customer({ initialId, threeD }) {
       const a = await getAccount(id.trim());
       setProfile(a.profile);
       window.history.replaceState(null, "", `#/customer/${a.profile.account_id}`);
+      setPanel(CLOSED);
       await run(EMPTY, a.profile.account_id);
     } catch (e) { setError(e.message); }
   }, [run]);
@@ -61,7 +78,7 @@ export default function Customer({ initialId, threeD }) {
       </form>
       {error && <p role="alert" className="text-negative-ink">{error}</p>}
 
-      {profile && <AccountView accountId={profile.account_id} />}
+      {profile && <AccountView accountId={profile.account_id} panel={panel} setPanel={setPanel} />}
 
       {profile && (
         <section aria-label="Ask ServaAI" className="space-y-4 border-t border-line pt-10">
@@ -70,7 +87,7 @@ export default function Customer({ initialId, threeD }) {
             <p className="text-muted">Tell ServaAI in your own words. It shows how long your money would last and what you could change.</p>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-            <ChatBot accountId={profile.account_id} onApplied={(s) => run(s, profile.account_id)} />
+            <ChatBot accountId={profile.account_id} onApplied={(s) => run(s, profile.account_id)} onLink={onLink} />
             <figure className="m-0 overflow-hidden rounded-md border border-line bg-raised">
               <div className="h-[300px] sm:h-[400px]">
                 {stackProps && (threeD
@@ -89,14 +106,14 @@ export default function Customer({ initialId, threeD }) {
       <div className="border-t border-line pt-10"><PowerBIPanel /></div>
 
       {data && (
-        <details className="rounded-md border border-line p-4">
+        <details open={detailsOpen} onToggle={(e) => setDetailsOpen(e.currentTarget.open)} className="rounded-md border border-line p-4">
           <summary className="cursor-pointer font-medium">Details: forecast, plan and the numbers behind it</summary>
           <div className="mt-6 space-y-12">
             <div className="space-y-2">
               <RunwayPair judge={r.judge_runway} realistic={r.realistic_runway} />
               <p className="max-w-[70ch] text-xs text-muted">Judge formula: {r.judge_runway.explanation}</p>
             </div>
-            <ForecastChart f={data.forecast} />
+            <div id="forecast-anchor" className="scroll-mt-6"><ForecastChart f={data.forecast} /></div>
             <div className="grid gap-10 lg:grid-cols-2">
               <PlanList plan={data.plan} />
               <ShockControls shock={shock} setShock={setShock} onApply={(s) => run(s, profile.account_id)} busy={false} />
