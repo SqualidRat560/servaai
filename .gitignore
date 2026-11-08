@@ -13,3 +13,7 @@ dist/
 # engine cache and raw-data exports for the hand check
 backend/cache/
 docs/answer_key/
+servaai_payload.tgz
+deploy/.vultr_deploy_key
+deploy/.vultr_deploy_key.pub
+servaai_code.tgz
