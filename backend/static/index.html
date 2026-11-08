@@ -59,6 +59,14 @@
 
   <section id="shockp" class="panel hidden">
     <h2 style="margin:0 0 10px;font-size:18px">2. Take a shock</h2>
+    <div class="row" style="margin-bottom:12px">
+      <div style="flex:3 1 320px"><label for="evt">Describe what happened (Gemini reads it, the engine does the math)</label>
+        <input id="evt" placeholder="e.g. They lose their job (EI at 55%) and their household bills go up 15%"></div>
+      <div style="flex:0 0 auto"><button id="parse">Read event</button></div>
+    </div>
+    <div id="chipbox" class="hidden" style="margin-bottom:12px">
+      <span id="chip"></span> <button id="applychip">Apply</button> <span class="explain" id="chipsrc"></span>
+    </div>
     <div class="twists" id="twists"></div>
     <div class="row">
       <div><label for="ei">Job loss: EI % of income (blank = no job loss)</label><input id="ei" type="number" min="0" max="100" step="1" placeholder="55"></div>
@@ -83,6 +91,8 @@
         <div class="explain" id="realwhy"></div>
       </div>
     </div>
+    <div style="margin-top:10px"><button class="ghost" id="explainbtn">Explain in plain English</button>
+      <p id="explaintext" style="margin:8px 0 0"></p></div>
     <div class="explain" id="steps" style="margin-top:10px"></div>
     <div class="explain" id="explain"></div>
     <p class="explain" style="margin-top:8px">Realistic: EI stops after 6 months and is capped at $729/week. money_in includes transfers and pensions, so EI here is an upper bound.</p>
@@ -145,6 +155,7 @@ function show(r, title) {
 }
 
 async function applyShock(body, title) {
+  lastBody = body; $("explaintext").textContent = "";
   try {
     const d = await api("/api/shock", {method: "POST", headers: {"Content-Type": "application/json"},
                                        body: JSON.stringify({account_id: current.account_id, ...body})});
@@ -185,6 +196,29 @@ async function loadExtras(body) {
   } catch (e) { $("msg").textContent = e.message; }
 }
 
+let parsedShock = null, lastBody = {};
+$("parse").onclick = async () => {
+  $("msg").textContent = ""; $("chip").textContent = "Reading..."; $("chipbox").classList.remove("hidden");
+  try {
+    const d = await api("/api/parse-event", {method: "POST", headers: {"Content-Type": "application/json"},
+                                             body: JSON.stringify({text: $("evt").value})});
+    parsedShock = d.shock;
+    $("chip").innerHTML = d.chip.length ? d.chip.map((c) => `<span class="tag" style="background:var(--orange);color:#1a1000;margin-right:6px">${c}</span>`).join("") : "No financial event found.";
+    $("applychip").classList.toggle("hidden", !d.chip.length);
+    $("chipsrc").textContent = `read by ${d.source}${d.model ? " (" + d.model + ")" : ""}${d.notes.length ? " - " + d.notes.join("; ") : ""}`;
+  } catch (e) { $("msg").textContent = e.message; }
+};
+$("evt").onkeydown = (e) => { if (e.key === "Enter") $("parse").click(); };
+$("applychip").onclick = () => { if (parsedShock) { setInputs(parsedShock); applyShock(parsedShock, "Your event"); } };
+$("explainbtn").onclick = async () => {
+  $("explaintext").textContent = "Writing...";
+  try {
+    const d = await api("/api/explain", {method: "POST", headers: {"Content-Type": "application/json"},
+                                         body: JSON.stringify({account_id: current.account_id, ...lastBody})});
+    $("explaintext").textContent = d.text + (d.source === "gemini" ? "" : " (template: Gemini unavailable or used a number the engine did not give)");
+  } catch (e) { $("explaintext").textContent = e.message; }
+};
+
 function fromInputs() {
   const ei = $("ei").value.trim();
   return {ei_pct: ei === "" ? null : Number(ei) / 100, bills_up_pct: Number($("bills").value || 0) / 100,
@@ -196,6 +230,7 @@ function setInputs(s) {
   $("ei").value = s.ei_pct === null ? "" : Math.round(s.ei_pct * 100);
   $("bills").value = Math.round(s.bills_up_pct * 100); $("rent").value = s.rent_up;
   $("rep").value = s.repair_months; $("oneoff").value = s.one_off;
+  $("reemp") && ($("reemp").value = s.reemploy_month ?? "");
 }
 
 $("load").onclick = () => lookup($("acct").value.trim());

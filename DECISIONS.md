@@ -133,3 +133,8 @@
   - Metrics on test: PR-AUC, recall and precision at top 5%, vs a rule baseline (buffer < 1 month of S) and the judge-runway baseline. 95% intervals by bootstrapping accounts (positives cluster in 288 accounts).
   - Fairness: recall at top 5% by gender (clients.gender M/F) and age band, with the positive count shown per group; groups under 30 positives are marked "too few to judge".
   - Tests: no feature uses months after t; the model never sees gender; tiers are monotonic in calibrated probability.
+
+## Update (Sat 11:35 PM): order and style
+- Phase 2 finished at 11:31 PM. Topic 12 risk flag: SKIPPED by the team. That time goes to the agent, then the real frontend + 3D.
+- Order: Phase 3 Gemini agent -> Phase 4/5 React frontend (designed 2D core) -> Phase 6 3D (hero coin scene first).
+- Visual style: "Bold Tangerine 3D": dark navy scene, glowing orange coins, the hero on a coin stack that drains or refills live with engine numbers, big numbers, minimal chrome. The localhost HTML page is a throwaway preview and gets replaced.

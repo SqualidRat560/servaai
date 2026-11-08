@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from backend import engine, forecast, plan, realistic
+from backend import agent, engine, forecast, plan, realistic
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -117,6 +117,27 @@ def plan_post(req: ShockRequest) -> dict:
         return plan.build_plan(req.account_id, s, cap=req.ei_cap, reemploy_month=req.reemploy_month)
     except engine.UnknownAccount:
         raise HTTPException(404, f"account_id {req.account_id} not found") from None
+
+
+class EventText(BaseModel):
+    text: str = Field(..., max_length=1000)
+
+
+@app.post("/api/parse-event")
+def parse_event(req: EventText) -> dict:
+    """Text -> structured events + shock fields. Shows a chip to confirm; applies nothing."""
+    return agent.parse_event(req.text)
+
+
+@app.post("/api/explain")
+def explain(req: ShockRequest) -> dict:
+    """Plain-English summary; every number in it comes from the engine (checked)."""
+    s = req.to_shock()
+    try:
+        facts = agent.explain_facts(req.account_id, s, reemploy_month=req.reemploy_month, cap=req.ei_cap)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {req.account_id} not found") from None
+    return {**agent.explain(facts), "facts": facts}
 
 
 @app.get("/")
