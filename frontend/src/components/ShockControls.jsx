@@ -1,7 +1,7 @@
 function Slider({ id, label, value, min, max, step, fmt, onChange, disabled }) {
   return (
     <div className={disabled ? "opacity-40" : ""}>
-      <div className="flex justify-between text-sm"><label htmlFor={id}>{label}</label><span className="tabular-nums text-mist">{fmt(value)}</span></div>
+      <div className="flex justify-between text-sm"><label htmlFor={id}>{label}</label><span className="tabular-nums text-muted">{fmt(value)}</span></div>
       <input id={id} type="range" min={min} max={max} step={step} value={value} disabled={disabled}
              onChange={(e) => onChange(Number(e.target.value))} className="w-full" />
     </div>
@@ -40,16 +40,16 @@ export default function ShockControls({ shock, setShock, onApply, busy }) {
             New job in month
             <input type="number" min={1} max={120} value={shock.reemploy_month ?? ""} placeholder="none"
                    onChange={(e) => set("reemploy_month")(e.target.value ? Number(e.target.value) : null)}
-                   className="w-20 rounded border border-line bg-deepwater px-2 py-0.5" />
+                   className="w-20 rounded border border-line bg-paper px-2 py-0.5" />
           </label>
         </div>
         <div className="flex gap-3">
           <button onClick={() => onApply(shock)} disabled={busy}
-                  className="rounded-lg bg-tangerine px-4 py-2 font-semibold text-harbour hover:bg-peel disabled:opacity-60">
+                  className="rounded-lg bg-accent px-4 py-2 font-semibold text-ink hover:bg-accent-soft disabled:opacity-60">
             Recalculate
           </button>
           <button onClick={() => { setShock(EMPTY); onApply(EMPTY); }} disabled={busy}
-                  className="rounded-lg border border-line px-4 py-2 text-mist hover:text-frost">
+                  className="rounded-lg border border-line px-4 py-2 text-muted hover:text-ink">
             Clear event
           </button>
         </div>

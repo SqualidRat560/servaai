@@ -33,19 +33,19 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-4 pt-5 pb-3 sm:px-6">
-        <a href="#/customer" className="display text-2xl font-bold text-frost no-underline">
-          Serva<span className="text-tangerine">AI</span>
+        <a href="#/customer" className="display text-2xl font-bold text-ink no-underline">
+          Serva<span className="text-accent-ink">AI</span>
         </a>
         <nav className="flex gap-5 text-[15px]">
           {Object.entries(PAGES).map(([key, label]) => (
             <a key={key} href={`#/${key}`}
-               className={`no-underline ${route.page === key ? "text-frost underline decoration-tangerine decoration-2 underline-offset-8" : "text-mist hover:text-frost"}`}>
+               className={`no-underline ${route.page === key ? "text-ink underline decoration-accent decoration-2 underline-offset-8" : "text-muted hover:text-ink"}`}>
               {label}
             </a>
           ))}
         </nav>
         <button onClick={toggle3D} aria-pressed={threeD}
-                className="ml-auto rounded-full border border-line px-3 py-1 text-sm text-mist hover:text-frost">
+                className="ml-auto rounded-full border border-line px-3 py-1 text-sm text-muted hover:text-ink">
           3D {threeD ? "on" : "off"}
         </button>
       </header>

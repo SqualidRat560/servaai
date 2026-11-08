@@ -1,29 +1,49 @@
 @import "tailwindcss";
 
+/* "Faded" theme: the single source of truth for colour and type.
+   The palette colours (accent, positive, negative, stone) are used for fills, lines and marks;
+   their "-ink" partners are the same hues darkened to pass WCAG AA (>= 4.5:1) as text on paper.
+   Mirrored for canvas/SVG/charts in src/theme.js. */
 @theme {
-  --color-harbour: #0b1b3f;
-  --color-deepwater: #13285a;
-  --color-line: #24407e;
-  --color-tangerine: #f28500;
-  --color-peel: #ffc27a;
-  --color-frost: #e8eef9;
-  --color-mist: #a9b7d6;
-  --color-overdraft: #ff6b5b;
-  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, sans-serif;
+  --color-paper: #f3eee5;        /* page */
+  --color-raised: #ebe4d8;       /* quiet panels */
+  --color-line: #cfc5b5;         /* 1px hairlines */
+  --color-ink: #34322e;          /* body text, 11.1:1 */
+  --color-muted: #67625a;        /* secondary text, 5.2:1 (stone #8a857c is 3.2:1, used for marks only) */
+  --color-stone: #8a857c;
+  --color-accent: #d9895a;       /* faded tangerine: fills, bars, coins */
+  --color-accent-soft: #eed9c8;  /* chips, light coins */
+  --color-accent-ink: #9a4f22;   /* tangerine text, 5.2:1 */
+  --color-positive: #8fa08a;     /* dusty sage: marks */
+  --color-positive-ink: #546851; /* money in, 5.2:1 */
+  --color-negative: #b5705a;     /* clay: marks */
+  --color-negative-ink: #96503c; /* money out below zero, warnings, 5.2:1 */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
-html { background: var(--color-harbour); color: var(--color-frost); }
-body { margin: 0; font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+html { background: var(--color-paper); color: var(--color-ink); }
+body { margin: 0; font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
 
-/* condensed display numerals: the runway pair is the typographic centrepiece */
-.numeral { font-family: var(--font-display); font-variation-settings: "wdth" 75, "opsz" 96;
-           font-weight: 700; line-height: 0.85; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.display { font-family: var(--font-display); font-variation-settings: "wdth" 85, "opsz" 48; }
+/* paper grain: an SVG noise overlay at about 4% opacity, never intercepts clicks */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
-:focus-visible { outline: 2px solid var(--color-peel); outline-offset: 2px; border-radius: 4px; }
+/* large, calm numerals for runway; tabular figures for money everywhere */
+.numeral { font-family: var(--font-display); font-variation-settings: "opsz" 144, "SOFT" 50, "WONK" 0;
+           font-weight: 380; line-height: 0.9; letter-spacing: -0.02em; font-variant-numeric: lining-nums tabular-nums; }
+.display { font-family: var(--font-display); font-variation-settings: "opsz" 72, "SOFT" 50; font-weight: 450; letter-spacing: -0.01em; }
+.money, .tabular-nums { font-variant-numeric: tabular-nums; }
 
-input[type="range"] { accent-color: var(--color-tangerine); }
+/* one soft fade-in on load, nothing else moves on its own */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+main { animation: fade-in 700ms ease-out both; }
+
+:focus-visible { outline: 2px solid var(--color-accent-ink); outline-offset: 2px; border-radius: 3px; }
+input[type="range"] { accent-color: var(--color-accent); }
+input[type="checkbox"] { accent-color: var(--color-accent-ink); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

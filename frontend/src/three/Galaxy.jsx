@@ -6,6 +6,7 @@ import { Html, OrbitControls } from "@react-three/drei";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { SEG_COLOR } from "../pages/Portfolio.jsx";
+import { C } from "../theme.js";
 
 const AX = 30;      // months shown on each axis
 const SIZE = 8;     // world units for 30 months
@@ -46,13 +47,13 @@ function Diagonal() {
   }, []);
   return (
     <mesh geometry={geo} position={[0, 1.6, 0]} rotation={[0, Math.PI / 4, 0]}>
-      <meshBasicMaterial color="#F28500" transparent opacity={0.07} side={THREE.DoubleSide} />
+      <meshBasicMaterial color={C.accent} transparent opacity={0.07} side={THREE.DoubleSide} />
     </mesh>
   );
 }
 
 function Label({ position, children }) {
-  return <Html position={position} center className="pointer-events-none whitespace-nowrap text-xs text-mist">{children}</Html>;
+  return <Html position={position} center className="pointer-events-none whitespace-nowrap text-xs text-muted">{children}</Html>;
 }
 
 export default function Galaxy({ points }) {
@@ -60,8 +61,8 @@ export default function Galaxy({ points }) {
   const p = hover !== null ? points[hover] : null;
   return (
     <Canvas camera={{ position: [5.2, 4.2, 6.4], fov: 45 }} dpr={[1, 2]}>
-      <color attach="background" args={["#0f2150"]} />
-      <gridHelper args={[SIZE, 6, "#24407e", "#1a3168"]} />
+      <color attach="background" args={[C.raised]} />
+      <gridHelper args={[SIZE, 6, C.stone, C.line]} />
       <Diagonal />
       <Points points={points} onHover={setHover} onPick={(pt) => { window.location.hash = `#/customer/${pt.id}`; }} />
       <Label position={[0, -0.3, SIZE / 2 + 0.6]}>Judge formula runway (0 to 30 months)</Label>
@@ -69,7 +70,7 @@ export default function Galaxy({ points }) {
       <Label position={[SIZE / 2 - 0.4, 3.4, -SIZE / 2 + 0.4]}>formula = reality</Label>
       {p && (
         <Html position={pos(p)} className="pointer-events-none">
-          <div className="ml-3 rounded-lg border border-line bg-deepwater px-3 py-2 text-xs whitespace-nowrap text-frost shadow-lg">
+          <div className="ml-3 rounded-lg border border-line bg-paper px-3 py-2 text-xs whitespace-nowrap text-ink shadow-lg">
             Account {p.id}, {p.segment.toLowerCase()}<br />
             Judge {p.judge === null ? "120+" : p.judge.toFixed(1)} vs realistic {p.realistic === null ? "120+" : p.realistic.toFixed(1)} months
           </div>

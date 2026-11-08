@@ -1,3 +1,4 @@
+import { C } from "../theme.js";
 // 2D fallback for the hero: one coin = one month of runway.
 // Solid tangerine = realistic runway, peel = months the backup plan adds,
 // outline = extra months the judge formula promises on top.
@@ -19,11 +20,11 @@ export default function CoinStack2D({ judge, realistic, backup }) {
   return (
     <svg viewBox={`0 0 ${W} ${base + 30}`} className="h-full w-full" role="img"
          aria-label={`${real} months realistic runway${plan ? `, ${plan} more with the backup plan` : ""}${ghost ? `, ${ghost} more promised by the judge formula` : ""}`}>
-      <ellipse cx={W / 2} cy={base + 8} rx={rx + 26} ry={ry + 6} fill="#081430" />
+      <ellipse cx={W / 2} cy={base + 8} rx={rx + 26} ry={ry + 6} fill={C.raised} />
       {coins.map((kind, i) => {
         const y = base - i * coinH;
-        const fill = kind === "real" ? "#F28500" : kind === "plan" ? "#FFC27A" : "none";
-        const edge = kind === "real" ? "#B85F00" : kind === "plan" ? "#D99A4E" : "#5d77b3";
+        const fill = kind === "real" ? C.accent : kind === "plan" ? C.accentSoft : "none";
+        const edge = kind === "real" ? C.coinEdge : kind === "plan" ? C.coinEdgeSoft : C.stone;
         return (
           <g key={i} style={{ transition: "opacity 300ms", transitionDelay: `${i * 18}ms` }}>
             {kind !== "ghost" && <rect x={W / 2 - rx} y={y - coinH} width={rx * 2} height={coinH} fill={edge} />}
@@ -35,7 +36,7 @@ export default function CoinStack2D({ judge, realistic, backup }) {
         );
       })}
       {total === 0 && (
-        <text x={W / 2} y={base - 30} textAnchor="middle" fill="#FF6B5B" className="display" fontSize="22">No buffer left</text>
+        <text x={W / 2} y={base - 30} textAnchor="middle" fill={C.negativeInk} className="display" fontSize="22">No buffer left</text>
       )}
     </svg>
   );

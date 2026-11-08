@@ -5,6 +5,7 @@ import { ContactShadows, OrbitControls } from "@react-three/drei";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { coinCounts, MAX_COINS } from "../components/CoinStack2D.jsx";
+import { C } from "../theme.js";
 
 const COIN_H = 0.105;
 const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -41,7 +42,7 @@ function Coins({ kind, from, count, color, ghost }) {
       <cylinderGeometry args={[0.55, 0.55, COIN_H * 0.82, 40]} />
       {ghost
         ? <meshBasicMaterial color={color} wireframe transparent opacity={0.55} />
-        : <meshStandardMaterial color={color} metalness={0.75} roughness={0.28} emissive={color} emissiveIntensity={0.12} />}
+        : <meshStandardMaterial color={color} metalness={0.05} roughness={0.85} />}
     </instancedMesh>
   );
 }
@@ -58,16 +59,16 @@ function Mascot({ height }) {
     <group ref={ref} position={[0, height + 0.42, 0]}>
       <mesh castShadow>
         <icosahedronGeometry args={[0.4, 1]} />
-        <meshStandardMaterial color="#F28500" roughness={0.55} flatShading />
+        <meshStandardMaterial color={C.accent} roughness={0.9} flatShading />
       </mesh>
       <mesh position={[0.06, 0.43, 0]} rotation={[0, 0, -0.5]}>
         <coneGeometry args={[0.08, 0.26, 5]} />
-        <meshStandardMaterial color="#3fae6a" flatShading />
+        <meshStandardMaterial color={C.positive} flatShading />
       </mesh>
       {[-0.13, 0.13].map((x) => (
         <mesh key={x} position={[x, 0.06, 0.36]}>
           <sphereGeometry args={[0.05, 10, 10]} />
-          <meshStandardMaterial color="#0B1B3F" />
+          <meshStandardMaterial color={C.ink} />
         </mesh>
       ))}
     </group>
@@ -80,16 +81,16 @@ function Scene({ judge, realistic, backup }) {
   useFrame((_, dt) => { if (spin.current && !reduced) spin.current.rotation.y += dt * 0.12; });
   return (
     <>
-      <color attach="background" args={["#0f2150"]} />
-      <ambientLight intensity={0.35} />
-      <directionalLight position={[3, 6, 4]} intensity={2.2} color="#ffd9a8" castShadow />
-      <directionalLight position={[-4, 2, -3]} intensity={1.2} color="#5d77b3" />
+      <color attach="background" args={[C.raised]} />
+      <ambientLight intensity={0.9} />
+      <directionalLight position={[3, 6, 4]} intensity={1.4} color={C.keyLight} castShadow />
+      <directionalLight position={[-4, 2, -3]} intensity={0.5} color={C.rimLight} />
       <group ref={spin} position={[0, -1.55, 0]}>
-        <Coins kind="real" from={0} count={real} color="#F28500" />
-        <Coins kind="plan" from={real} count={plan} color="#FFC27A" />
-        <Coins kind="ghost" from={real + plan} count={ghost} color="#a9b7d6" ghost />
+        <Coins kind="real" from={0} count={real} color={C.accent} />
+        <Coins kind="plan" from={real} count={plan} color={C.accentSoft} />
+        <Coins kind="ghost" from={real + plan} count={ghost} color={C.stone} ghost />
         <Mascot height={(real + plan) * COIN_H} />
-        <ContactShadows position={[0, 0, 0]} opacity={0.5} scale={5} blur={2.4} far={2} />
+        <ContactShadows position={[0, 0, 0]} opacity={0.22} scale={5} blur={2.8} far={2} />
       </group>
       <OrbitControls enablePan={false} enableZoom={false} minPolarAngle={0.9} maxPolarAngle={1.45} />
     </>

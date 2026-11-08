@@ -5,9 +5,9 @@ function Figure({ label, runway, accent }) {
   const unit = runway.value === null ? "no shortfall" : "months";
   return (
     <div>
-      <div className={`text-[15px] ${accent ? "text-tangerine" : "text-mist"}`}>{label}</div>
-      <div className={`numeral text-[clamp(4.5rem,11vw,8.5rem)] ${accent ? "text-frost" : "text-mist"}`}>{n}</div>
-      <div className="mt-1 text-[15px] text-mist">{unit}</div>
+      <div className={`text-[15px] ${accent ? "text-accent-ink" : "text-muted"}`}>{label}</div>
+      <div className={`numeral text-[clamp(4.5rem,11vw,8.5rem)] ${accent ? "text-ink" : "text-muted"}`}>{n}</div>
+      <div className="mt-1 text-[15px] text-muted">{unit}</div>
     </div>
   );
 }
@@ -21,11 +21,11 @@ export default function RunwayPair({ judge, realistic }) {
         <Figure label="Judge formula" runway={judge} />
         <Figure label="ServaAI realistic" runway={realistic} accent />
       </div>
-      <p className="mt-4 max-w-[60ch] text-[15px] text-mist">
+      <p className="mt-4 max-w-[60ch] text-[15px] text-muted">
         {gap === null
           ? <>The formula sees no shortfall at all; realistically the money runs out after {months(realistic)} months.</>
           : gap > 0.05
-            ? <>The formula overstates this customer's runway by <span className="text-frost">{gap.toFixed(1)} months</span>. {realistic.reason}.</>
+            ? <>The formula overstates this customer's runway by <span className="text-ink">{gap.toFixed(1)} months</span>. {realistic.reason}.</>
             : <>Both views agree. {realistic.reason}.</>}
       </p>
     </section>

@@ -27,39 +27,39 @@ export default function EventBox({ onApply, busy }) {
         <input id="event" value={text} onChange={(e) => setText(e.target.value)}
                onKeyDown={(e) => e.key === "Enter" && read()}
                placeholder="Lost my job, EI pays 55%. Rent went up $200."
-               className="min-w-0 flex-1 rounded-lg border border-line bg-deepwater px-3 py-2.5 text-frost placeholder:text-mist/60" />
+               className="min-w-0 flex-1 rounded-lg border border-line bg-paper px-3 py-2.5 text-ink placeholder:text-muted/70" />
         <button onClick={() => read()} disabled={reading}
-                className="rounded-lg border border-tangerine px-4 font-semibold text-tangerine hover:bg-tangerine hover:text-harbour disabled:opacity-60">
+                className="rounded-lg border border-accent px-4 font-semibold text-accent-ink hover:bg-accent hover:text-ink disabled:opacity-60">
           {reading ? "Reading" : "Read"}
         </button>
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-mist">
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
         Twist cards:
         {CARDS.map((c, i) => (
           <button key={i} onClick={() => { setText(c); read(c); }} title={c}
-                  className="text-mist underline decoration-line underline-offset-4 hover:text-frost">
+                  className="text-muted underline decoration-line underline-offset-4 hover:text-ink">
             card {i + 1}
           </button>
         ))}
       </div>
 
-      {error && <p className="mt-3 text-overdraft">{error}</p>}
+      {error && <p className="mt-3 text-negative-ink">{error}</p>}
       {parsed && (
         <div className="mt-4">
           {parsed.chip.length === 0
-            ? <p className="text-mist">No money event found in that sentence. Try “lost my job” or “rent up $200”.</p>
+            ? <p className="text-muted">No money event found in that sentence. Try “lost my job” or “rent up $200”.</p>
             : (
               <div className="flex flex-wrap items-center gap-2">
                 {parsed.chip.map((c) => (
-                  <span key={c} className="rounded-full bg-tangerine/15 px-3 py-1 text-[15px] text-peel ring-1 ring-tangerine/40">{c}</span>
+                  <span key={c} className="rounded-full bg-accent-soft px-3 py-1 text-[15px] text-accent-ink ring-1 ring-accent/50">{c}</span>
                 ))}
                 <button onClick={() => onApply(parsed.shock)} disabled={busy}
-                        className="rounded-lg bg-tangerine px-4 py-1.5 font-semibold text-harbour hover:bg-peel disabled:opacity-60">
+                        className="rounded-lg bg-accent px-4 py-1.5 font-semibold text-ink hover:bg-accent-soft disabled:opacity-60">
                   Apply
                 </button>
               </div>
             )}
-          <p className="mt-2 text-xs text-mist">
+          <p className="mt-2 text-xs text-muted">
             Read by {parsed.source === "rules" ? "the built-in parser (Gemini unavailable)" : `Gemini (${parsed.model})`}.
             {parsed.notes.length > 0 && ` ${parsed.notes.join(". ")}.`} Numbers come from the engine, not the AI.
           </p>
