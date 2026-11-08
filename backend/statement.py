@@ -27,6 +27,24 @@ PURPOSE_LABEL = {
     "pension": "Pension", "interest credited": "Interest", "statement fee": "Statement fee",
     "penalty interest (negative balance)": "Penalty interest",
 }
+# One entry per monthly_summary category column. The rules reproduce those columns exactly
+# (checked to the cent on every account-month), so a category's total and its transaction list agree.
+# key -> (label, monthly_summary column, side, row rule on (operation, purpose))
+CATEGORIES = {
+    "household_bills": ("Household bills", "household_bills", "out", lambda t: t["purpose"] == "household bills"),
+    "insurance": ("Insurance", "insurance", "out", lambda t: t["purpose"] == "insurance"),
+    "loan_payments": ("Loan payments", "loan_payments", "out", lambda t: t["purpose"] == "loan payment"),
+    "card_withdrawals": ("Card spending", "card_withdrawals", "out", lambda t: t["operation"] == "card withdrawal"),
+    "cash_withdrawals": ("Cash withdrawals", "cash_withdrawals_genuine", "out", lambda t: t["operation"] == "cash withdrawal"),
+    "transfers_out": ("Transfers out", "transfers_out_other", "out",
+                      lambda t: (t["operation"] == "transfer out to another bank") & (t["purpose"] == "")),
+    "bank_fees": ("Bank fees", "bank_fees", "out", lambda t: t["operation"] == "bank fee"),
+    "cash_deposits": ("Cash deposits", "cash_deposits", "in", lambda t: t["operation"] == "cash deposit"),
+    "transfers_in": ("Transfers in", "transfers_in", "in",
+                     lambda t: (t["operation"] == "transfer in from another bank") & (t["purpose"] == "")),
+    "pension": ("Pension", "pension_in", "in", lambda t: t["purpose"] == "pension"),
+    "interest": ("Interest", "interest_in", "in", lambda t: t["operation"] == "interest"),
+}
 COLS = ["transaction_id", "account_id", "date", "direction", "operation", "purpose", "amount", "signed_amount", "balance"]
 
 
@@ -102,14 +120,50 @@ def loan_summary(account_id: int) -> dict | None:
     }
 
 
-def statement(account_id, limit: int = 50, before: str | None = None, direction: str | None = None) -> dict:
+class BadFilter(ValueError):
+    """An unknown category or purpose in a statement filter."""
+
+
+def categories(account_id, month: str | None = None) -> dict:
+    """Totals per category for one month (default: the account's last month), from monthly_summary."""
+    p = engine.profile(account_id)
+    m = engine.load_monthly_cached()
+    mine = m[m["account_id"] == p.account_id]
+    months = mine["month"].tolist()
+    month = month or months[-1]
+    row = mine[mine["month"] == month]
+    if row.empty:
+        raise BadFilter(f"no data for {month}; this account has {months[0]} to {months[-1]}")
+    r = row.iloc[0]
+    out = {"out": [], "in": []}
+    for key, (label, col, side, _) in CATEGORIES.items():
+        out[side].append({"key": key, "label": label, "amount": round(float(r[col]), 2)})
+    return {"account_id": p.account_id, "month": month, "months": months,
+            "money_out": round(float(r["money_out"]), 2), "money_in": round(float(r["money_in"]), 2),
+            "out": out["out"], "in": out["in"]}
+
+
+def statement(account_id, limit: int = 50, before: str | None = None, direction: str | None = None,
+              category: str | None = None, purpose: str | None = None, month: str | None = None) -> dict:
     p = engine.profile(account_id)  # raises UnknownAccount
     aid = p.account_id
     s = store()
     limit = max(1, min(int(limit), 500))
     rows = s["tx"].iloc[slice(*s["ranges"].get(aid, (0, 0)))]
+    if category:
+        if category not in CATEGORIES:
+            raise BadFilter(f"unknown category '{category}'")
+        rows = rows[CATEGORIES[category][3](rows)]
+    if purpose:  # a raw purpose value from the data, e.g. "loan payment"
+        if purpose not in PURPOSE_LABEL:
+            raise BadFilter(f"unknown purpose '{purpose}'")
+        rows = rows[rows["purpose"] == purpose]
+    if month:
+        rows = rows[rows["date"].str.startswith(month)]
     if direction in ("in", "out"):
         rows = rows[rows["signed_amount"] > 0] if direction == "in" else rows[rows["signed_amount"] < 0]
+    total_matching = len(rows)
+    total_amount = float(rows["amount"].sum())
     if before:
         rows = rows[rows["date"] < before]
     page = rows.iloc[:limit]
@@ -133,4 +187,5 @@ def statement(account_id, limit: int = 50, before: str | None = None, direction:
             for r in page.itertuples()],
         "next_before": str(page["date"].iloc[-1]) if has_more and len(page) else None,
         "has_more": has_more,
+        "total_matching": total_matching, "total_amount": round(total_amount, 2),
     }

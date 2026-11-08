@@ -72,3 +72,37 @@ def test_direction_filter_and_labels():
 def test_bad_params_are_422():
     assert _get(63816, before="June").status_code == 422
     assert _get(63816, direction="sideways").status_code == 422
+
+
+# ---- categories and filters (chatbot prompt, part 1)
+
+def test_loan_payment_filter_counts_58_for_63816():
+    d = _get(63816, purpose="loan payment", limit=5).json()
+    assert d["total_matching"] == 58 and abs(d["total_amount"] - 182897.20) < 0.01
+    assert all(t["purpose"] == "Loan payment" for t in d["transactions"])
+    assert _get(63816, category="loan_payments").json()["total_matching"] == 58
+
+
+def test_every_category_filter_adds_up_to_its_monthly_total():
+    cats = client.get("/api/accounts/63816/categories", params={"month": "2025-03"}).json()
+    assert cats["month"] == "2025-03" and "2025-12" in cats["months"]
+    for side in ("out", "in"):
+        for c in cats[side]:
+            d = _get(63816, category=c["key"], month="2025-03", limit=500).json()
+            assert abs(d["total_amount"] - c["amount"]) < 0.011, c
+    assert abs(sum(c["amount"] for c in cats["out"]) - cats["money_out"]) < 0.011
+    assert abs(sum(c["amount"] for c in cats["in"]) - cats["money_in"]) < 0.011
+
+
+def test_categories_defaults_to_last_month_and_rejects_bad_input():
+    assert client.get("/api/accounts/99477/categories").json()["month"] == "2024-03"
+    assert client.get("/api/accounts/63816/categories", params={"month": "2031-01"}).status_code == 422
+    assert client.get("/api/accounts/63816/categories", params={"month": "March"}).status_code == 422
+    assert client.get("/api/accounts/1/categories").status_code == 404
+    assert _get(63816, category="nonsense").status_code == 422
+    assert _get(63816, purpose="nonsense").status_code == 422
+
+
+def test_month_and_direction_filters_combine():
+    d = _get(63816, month="2025-12", direction="out", limit=200).json()
+    assert d["transactions"] and all(t["date"].startswith("2025-12") and t["direction"] == "out" for t in d["transactions"])

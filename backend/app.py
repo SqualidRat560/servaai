@@ -90,17 +90,36 @@ def account(account_id: int) -> dict:
 
 
 @app.get("/api/accounts/{account_id}/statement")
-def account_statement(account_id: int, limit: int = 50, before: str | None = None,
-                      direction: str | None = None) -> dict:
-    """'My account': balance, loan (estimate), cards and transactions, newest first."""
+def account_statement(account_id: int, limit: int = 50, before: str | None = None, direction: str | None = None,
+                      category: str | None = None, purpose: str | None = None, month: str | None = None) -> dict:
+    """'My account': balance, loan (estimate), cards and transactions, newest first. Filters: direction
+    (in/out), category (a key from /categories), purpose (raw, e.g. 'loan payment'), month (YYYY-MM)."""
     if before is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", before):
         raise HTTPException(422, "before must be a date like 2025-06-30")
+    if month is not None and not re.fullmatch(r"\d{4}-\d{2}", month):
+        raise HTTPException(422, "month must look like 2025-06")
     if direction not in (None, "", "in", "out"):
         raise HTTPException(422, "direction must be 'in' or 'out'")
     try:
-        return statement.statement(account_id, limit=limit, before=before, direction=direction or None)
+        return statement.statement(account_id, limit=limit, before=before, direction=direction or None,
+                                   category=category or None, purpose=purpose or None, month=month)
     except engine.UnknownAccount:
         raise HTTPException(404, f"account_id {account_id} not found") from None
+    except statement.BadFilter as e:
+        raise HTTPException(422, str(e)) from None
+
+
+@app.get("/api/accounts/{account_id}/categories")
+def account_categories(account_id: int, month: str | None = None) -> dict:
+    """Totals per category (they add up to money out / money in) for one month, default the latest."""
+    if month is not None and not re.fullmatch(r"\d{4}-\d{2}", month):
+        raise HTTPException(422, "month must look like 2025-06")
+    try:
+        return statement.categories(account_id, month)
+    except engine.UnknownAccount:
+        raise HTTPException(404, f"account_id {account_id} not found") from None
+    except statement.BadFilter as e:
+        raise HTTPException(422, str(e)) from None
 
 
 @app.post("/api/shock")
