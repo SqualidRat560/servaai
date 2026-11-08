@@ -1,4 +1,12 @@
+# data and secrets
 data/
-reports/*.parquet
+.env
+*.parquet
+powerbi/exports/*.csv
+# python
 __pycache__/
 .venv/
+.pytest_cache/
+# node
+node_modules/
+dist/

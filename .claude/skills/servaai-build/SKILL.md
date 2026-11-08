@@ -147,11 +147,25 @@ Card: Trajectory forecast.
 - HOW: depends on the choice below. Backtest: forecast from each month-end in 2025-01..2025-09,
   compare months t+1..t+3 with actual month_end_balance. Report MAE and median absolute % error
   vs a "nothing changes" baseline (balance stays flat).
+Regression ladder (build in this order, compare all on the same 2025 backtest):
+1. Baseline: median net flow (I - S) per month + damped 6-month trend, added month by month.
+2. Ridge regression: target = net flow at horizon h (one model per h = 1, 2, 3); features from
+   months <= t only: last 3/6/12-month income and spending medians, income volatility (CV),
+   household_bills share, loan_payments share, avg_daily_balance 6-month slope, min_balance
+   last 3 months, months since last negative day, account age, calendar month.
+   StandardScaler + RidgeCV. Trajectory = current balance + cumulative predicted net flows.
+3. XGBoost regression: same rows, features and horizons; objective reg:squarederror (or
+   reg:absoluteerror), early stopping on the 2024 validation months, max 12 configs.
+Split by time: train t in 2020-07..2023-09, validate 2024-01..2024-09, test 2025-01..2025-09.
+No feature may use any month after t. Event shocks are applied by the engine ON TOP of the
+predicted flows (e.g. income part x 0.55 for job loss); the model predicts the normal path.
+Deliverable: docs/backtest.md with a table: MAE and median absolute % error at h = 1, 2, 3 for
+flat baseline, statistical baseline, Ridge, XGBoost; show the winner in the app and say
+honestly if ML does not beat the baseline.
 Questions:
-1. Base forecast? "Median net flow (I - S) per month + 6-month trend, damped (Recommended)" /
-   "Seasonal naive: same months last year's net flow" / "ML: LightGBM on lagged monthly
-   features (adds about 4 h and the leakage rules from the ML spec)"
-2. Uncertainty band? "P10-P90 from the account's own historical residuals (Recommended)" /
+1. How far up the ladder? "Baseline + Ridge now, XGBoost if on time (Recommended)" /
+   "Baseline only" / "All three now"
+2. Uncertainty band? "P10-P90 from the model's validation residuals (Recommended)" /
    "Fixed +/-1 standard deviation" / "No band"
 3. Must beat? "The flat baseline on MAE, or we say so honestly (Recommended)" / "No backtest"
 
@@ -229,9 +243,20 @@ Questions:
 2. Freeze? "Feature freeze 9 AM, submit by 11:30 AM (Recommended)" / "Freeze 10 AM"
 3. Video? "2-minute screen recording with voice-over (Recommended)" / "Slides + short clip"
 
-### Topic 12: Optional ML layer
-1. Add the early-warning ML model? "No, the forecast is enough (Recommended)" /
-   "Only if everything is green by 2 AM" / "Yes, in parallel"
+### Topic 12: Risk flag (XGBoost classifier)
+Card: Overdraft early warning.
+- WHAT: risk tier (Watch / Act / Urgent) + top 3 reasons for each customer.
+- WHY: Discovery, Impact; who Tangerine should contact first.
+- WHERE: backend/risk.py; endpoint /risk/{account_id}; badge on the customer page; galaxy colour.
+- HOW: label = any days_below_zero > 0 in months t+1..t+3 (about 2,180 positives); headline
+  label y_new = same but only for rows with no negative days in t-2..t. Same time split and
+  features as the forecast (no loans.status/defaulted, standing_orders or gender as features).
+  XGBoost binary:logistic with scale_pos_weight; isotonic calibration on validation; SHAP
+  TreeExplainer for reasons. Metrics: PR-AUC, recall and precision at top 5%, vs a rule
+  baseline (buffer < 1 month of S) and the judge-runway baseline. Fairness: recall at top 5%
+  by gender and age band.
+1. Build it? "Yes, if the engine and forecast are green by 1 AM (Recommended)" /
+   "Yes, in parallel now" / "No"
 
 ## Build phases (after CLAUDE.md is approved)
 
