@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from backend import agent, engine, forecast, plan, realistic
+from backend import agent, engine, forecast, plan, population, realistic
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -138,6 +138,25 @@ def explain(req: ShockRequest) -> dict:
     except engine.UnknownAccount:
         raise HTTPException(404, f"account_id {req.account_id} not found") from None
     return {**agent.explain(facts), "facts": facts}
+
+
+@app.get("/api/portfolio")
+def portfolio() -> dict:
+    """Headline + one compact point per customer (for the galaxy and the Portfolio page)."""
+    a = population.load_portfolio()
+    import pandas as pd
+    hl = pd.read_csv(population.EXPORTS / "headline.csv") if (population.EXPORTS / "headline.csv").exists() else None
+    if hl is None:
+        population.build(write=True)
+        hl = pd.read_csv(population.EXPORTS / "headline.csv")
+    headline = {r.metric: {"share": r.share, "ci_low": r.ci_low, "ci_high": r.ci_high} for r in hl.itertuples()}
+    seg = a["segment"].value_counts().reindex(population.SEGMENTS, fill_value=0)
+    pts = [{"id": int(i), "segment": r.segment, "B": round(float(r.B), 2),
+            "judge": None if pd.isna(r.judge_ei55) else float(r.judge_ei55),
+            "realistic": None if pd.isna(r.realistic_ei55) else float(r.realistic_ei55),
+            "region": r.region} for i, r in zip(a.index, a.itertuples())]
+    return {"shock": "Job loss, EI 55%", "headline": headline,
+            "segments": {k: int(v) for k, v in seg.items()}, "points": pts}
 
 
 @app.get("/")
