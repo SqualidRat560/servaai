@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ServaAI preview</title>
+<style>
+  :root { --navy:#0b1630; --panel:#13224a; --line:#24376b; --text:#e9eefb; --muted:#9fb0d6;
+          --orange:#F28500; --red:#ff6b6b; --green:#4cd18a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--navy); color:var(--text);
+         font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:1040px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { margin:0 0 4px; font-size:26px; } h1 span { color:var(--orange); }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  label { display:block; color:var(--muted); font-size:13px; margin-bottom:4px; }
+  input, select { width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
+                  background:#0e1a3a; color:var(--text); font:inherit; }
+  button { padding:9px 14px; border-radius:8px; border:0; background:var(--orange); color:#1a1000;
+           font-weight:600; cursor:pointer; font:inherit; font-weight:600; }
+  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+  .row > div { flex:1 1 140px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .card { background:#0e1a3a; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .card .k { color:var(--muted); font-size:12px; } .card .v { font-size:20px; font-weight:650; }
+  .twists { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .result { display:grid; grid-template-columns:1fr; gap:10px; }
+  .big { font-size:40px; font-weight:750; color:var(--orange); }
+  .tag { display:inline-block; font-size:12px; padding:2px 8px; border-radius:99px; background:#24376b; color:var(--text); }
+  .explain { font-family:ui-monospace, Consolas, monospace; font-size:13px; color:var(--muted); word-break:break-word; }
+  .err { color:var(--red); } .ok { color:var(--green); } .bad { color:var(--red); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Serva<span>AI</span> <small style="font-size:14px;color:var(--muted)">local preview</small></h1>
+  <p class="sub">Judge-formula engine only. Every number below comes from the tested Python engine.</p>
+
+  <section class="panel">
+    <div class="row">
+      <div><label for="acct">account_id</label><input id="acct" inputmode="numeric" placeholder="e.g. 63816" value="63816"></div>
+      <div style="flex:0 0 auto"><button id="load">Look up</button></div>
+      <div style="flex:0 0 auto">
+        <button class="ghost" data-id="63816">63816 normal</button>
+        <button class="ghost" data-id="32078">32078 B&le;0</button>
+        <button class="ghost" data-id="99477">99477 ends early</button>
+      </div>
+    </div>
+    <p id="msg" class="err"></p>
+  </section>
+
+  <section id="customer" class="panel hidden">
+    <h2 style="margin:0 0 10px;font-size:18px">1. Know the customer <span id="meta" class="tag"></span></h2>
+    <div class="grid" id="cards"></div>
+  </section>
+
+  <section id="shockp" class="panel hidden">
+    <h2 style="margin:0 0 10px;font-size:18px">2. Take a shock</h2>
+    <div class="twists" id="twists"></div>
+    <div class="row">
+      <div><label for="ei">Job loss: EI % of income (blank = no job loss)</label><input id="ei" type="number" min="0" max="100" step="1" placeholder="55"></div>
+      <div><label for="bills">Household bills up %</label><input id="bills" type="number" min="0" step="1" value="0"></div>
+      <div><label for="rent">Rent up ($/month)</label><input id="rent" type="number" min="0" step="10" value="0"></div>
+      <div><label for="rep">Repair (months of spending)</label><input id="rep" type="number" min="0" step="0.5" value="0"></div>
+      <div><label for="oneoff">Repair or scam ($)</label><input id="oneoff" type="number" min="0" step="100" value="0"></div>
+      <div style="flex:0 0 auto"><button id="apply">Apply shock</button></div>
+    </div>
+  </section>
+
+  <section id="resultp" class="panel hidden">
+    <h2 style="margin:0 0 10px;font-size:18px">Runway <span class="tag">Judge formula</span></h2>
+    <div class="result">
+      <div class="big" id="runway"></div>
+      <div id="verdict"></div>
+      <div class="explain" id="steps"></div>
+      <div class="explain" id="explain"></div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const money = (v) => v.toLocaleString("en-CA", {style: "currency", currency: "CAD"});
+let current = null, twistList = [];
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail ? (typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)) : r.statusText);
+  return body;
+}
+
+async function lookup(id) {
+  $("msg").textContent = "";
+  try {
+    const d = await api(`/api/accounts/${encodeURIComponent(id)}`);
+    current = d.profile;
+    const p = d.profile;
+    $("meta").textContent = `${p.n_months} months, ${p.first_month} to ${p.last_month}, loan ${p.loan_status || "none"}`;
+    const cards = [
+      ["Typical money in (I)", money(p.I)], ["Typical spending (S)", money(p.S)],
+      ["Fixed costs (F)", money(p.F)], ["Household bills (H)", money(p.H)],
+      ["Buffer (B)", money(p.B)], ["Loan payment (P)", money(p.P)],
+      ["Runway, no shock", d.runway_no_shock.label],
+    ];
+    $("cards").innerHTML = cards.map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+    ["customer", "shockp"].forEach((s) => $(s).classList.remove("hidden"));
+    $("steps").textContent = "";
+    show(d.runway_no_shock, "No shock");
+  } catch (e) { $("msg").textContent = e.message; }
+}
+
+function show(r, title) {
+  $("resultp").classList.remove("hidden");
+  $("runway").textContent = r.label;
+  const v = r.value;
+  $("verdict").innerHTML = `<b>${title}</b>: ` + (v === null ? '<span class="ok">income covers spending</span>'
+    : v >= 6 ? '<span class="ok">lasts 6+ months</span>' : '<span class="bad">does not last 6 months</span>');
+  $("explain").textContent = r.explanation;
+}
+
+async function applyShock(body, title) {
+  try {
+    const d = await api("/api/shock", {method: "POST", headers: {"Content-Type": "application/json"},
+                                       body: JSON.stringify({account_id: current.account_id, ...body})});
+    $("steps").textContent = d.shocked.explanation;
+    show(d.judge_runway, title);
+  } catch (e) { $("msg").textContent = e.message; }
+}
+
+function fromInputs() {
+  const ei = $("ei").value.trim();
+  return {ei_pct: ei === "" ? null : Number(ei) / 100, bills_up_pct: Number($("bills").value || 0) / 100,
+          rent_up: Number($("rent").value || 0), repair_months: Number($("rep").value || 0),
+          one_off: Number($("oneoff").value || 0)};
+}
+
+function setInputs(s) {
+  $("ei").value = s.ei_pct === null ? "" : Math.round(s.ei_pct * 100);
+  $("bills").value = Math.round(s.bills_up_pct * 100); $("rent").value = s.rent_up;
+  $("rep").value = s.repair_months; $("oneoff").value = s.one_off;
+}
+
+$("load").onclick = () => lookup($("acct").value.trim());
+$("acct").onkeydown = (e) => { if (e.key === "Enter") lookup($("acct").value.trim()); };
+document.querySelectorAll("button[data-id]").forEach((b) => b.onclick = () => { $("acct").value = b.dataset.id; lookup(b.dataset.id); });
+$("apply").onclick = () => applyShock(fromInputs(), "Custom shock");
+
+api("/api/twists").then((list) => {
+  twistList = list;
+  $("twists").innerHTML = list.map((t, i) => `<button class="ghost" data-twist="${i}" title="${t.text}">README twist ${i + 1}</button>`).join("")
+    + `<span class="explain" id="twisttext" style="align-self:center"></span>`;
+  document.querySelectorAll("button[data-twist]").forEach((b) => b.onclick = () => {
+    const t = twistList[Number(b.dataset.twist)];
+    $("twisttext").textContent = t.text; setInputs(t.shock); applyShock(t.shock, `README twist ${Number(b.dataset.twist) + 1}`);
+  });
+});
+lookup($("acct").value);
+</script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 pandas==3.1.1
 pyarrow==26.0.1
 numpy==2.5.4
-fastapi
-uvicorn[standard]
-pydantic
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
 python-dotenv
 google-genai
 pytest==9.2.0
-httpx
+httpx==0.28.1
